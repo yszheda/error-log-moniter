@@ -146,24 +146,43 @@ def get_top_errors(version):
 		print("========================================")
 		return;
 
+########################################
+def get_info_of_version(version, callback):
+		assert version != None
+		callback(version)
+
 def get_all_latest_info(callback):
 		latestVersions = get_latest_versions()
 		for version in latestVersions.keys():
-				callback(version)
+				get_info_of_version(version, callback)
 		return;
+########################################
 
 def main(argv):
+		callback = None
+		version = None
 		try:
-				opts, args = getopt.getopt(argv, "se")
+				opts, args = getopt.getopt(argv, "sev:", ['severe',
+						'error',
+						'version='])
 		except getopt.GetoptError as err:
 				print "exception", str(err)
 				sys.exit(2)
 		for opt, arg in opts:
 				#print(opt, arg)
-				if opt == '-s':
-						get_all_latest_info(get_severe_erros)
-				elif opt == '-e':
-						get_all_latest_info(get_errors)
+				if opt in ('-v', '--version'):
+						version = arg
+				elif opt in ('-s', '--severe'):
+						callback = get_severe_erros
+				elif opt in ('-e', '--error'):
+						callback = get_errors
+		if not callback:
+				print("callback == None")
+				return
+		if version:
+				get_info_of_version(callback)
+		else:
+				get_all_latest_info(callback)
 
 
 if __name__ == "__main__":
