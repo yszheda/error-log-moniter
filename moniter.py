@@ -78,77 +78,20 @@ def get_latest_versions():
 
 		return latestVersions;
 
-def get_severe_erros(version):
-		SQL = """
-		SELECT * FROM(
-			SELECT app_v, log, is_crash, COUNT(*) AS cnt
-			FROM crash_log
-			WHERE version = %s
-			GROUP BY log
-			ORDER BY cnt DESC
-			) AS error_log
-			WHERE cnt >= %s
-		"""
+def get_severe_errors(version, *args):
+		filter_error(version, { 'threshold': SEVERE_ERROR_THRESHOLD })
 
-		print("========================================")
-		print("get_severe_erros")
-		print(version)
-		rows = query(CRASH_DB_NAME, SQL, (version, SEVERE_ERROR_THRESHOLD))
-		for row in rows:
-				print("error times", type(row))
-				print(row)
-		print("========================================")
-		return;
+def get_errors(version, *args):
+		filter_error(version)
 
-def get_errors(version):
-		SQL = """
-			SELECT app_v, log, is_crash, COUNT(*) AS cnt
-#			SELECT COUNT(*) AS cnt
-			FROM crash_log
-			WHERE version = %s
-			GROUP BY log
-			ORDER BY cnt DESC
-		"""
+def get_top_errors(version, *args):
+		filter_error(version, { 'limit': TOP_RECORD_NUM })
 
-		print("========================================")
-		print("get_errors")
-		print(version)
-		rows = query(CRASH_DB_NAME, SQL, (version))
-		for row in rows:
-#				print(row)
-				print "error times:", row[3]
-				print "log:\n" + row[1]
-				print("----------------------------------------")
-		print("========================================")
-		return;
-
-def get_top_errors(version):
-		SQL = """
-			SELECT log, is_crash, COUNT(*) AS cnt
-#			SELECT COUNT(*) AS cnt
-			FROM crash_log
-			WHERE version = %s
-			GROUP BY log
-			ORDER BY cnt DESC
-			LIMIT %s
-		"""
-
-		print("========================================")
-		print("get_top_errors")
-		print(version)
-		rows = query(CRASH_DB_NAME, SQL, (version, TOP_RECORD_NUM))
-		for row in rows:
-#				print(row)
-				print "error times:", row[2]
-				print "is crash:", row[1]
-				print "log:\n" + row[0]
-				print("----------------------------------------")
-		print("========================================")
-		return;
-
-def filter_error(version, args):
+def filter_error(version, args = {}):
 		keyword = args.get('keyword')
 		is_crash = args.get('is_crash')
+		limit = args.get('limit')
+		threshold = args.get('threshold')
 
 		SELECT_PHRASE = " SELECT log, COUNT(*) AS cnt "
 		FROM_PHRASE = " FROM crash_log "
@@ -163,12 +106,18 @@ def filter_error(version, args):
 				paramsList.append(is_crash)
 		GROUP_PHRASE = " GROUP BY log "
 		ORDER_PHRASE = " ORDER BY cnt DESC "
+		LIMIT_PHRASE = ""
+		if limit:
+			LIMIT_PHRASE = " LIMIT %s "
+			paramsList.append(limit)
 
-		SQL = SELECT_PHRASE + FROM_PHRASE + WHERE_PHRASE + GROUP_PHRASE + ORDER_PHRASE
+		SQL = SELECT_PHRASE + FROM_PHRASE + WHERE_PHRASE + GROUP_PHRASE + ORDER_PHRASE + LIMIT_PHRASE
+		if threshold:
+				SQL = "SELECT * FROM (" + SQL + ") AS error_logs WHERE cnt >= %s "
+				paramsList.append(threshold)
 
 		print("========================================")
-		print "filter_error"
-		print(version)
+		print "version:", version
 		rows = query(CRASH_DB_NAME, SQL, tuple(paramsList))
 		for row in rows:
 #				print(row)
@@ -179,11 +128,11 @@ def filter_error(version, args):
 		return;
 
 ########################################
-def get_info_of_version(version, callback, params):
+def get_info_of_version(version, callback, params = None):
 		assert version != None
 		callback(version, params)
 
-def get_all_latest_info(callback, params):
+def get_all_latest_info(callback, params = None):
 		latestVersions = get_latest_versions()
 		for version in latestVersions.keys():
 				get_info_of_version(version, callback, params)
@@ -200,22 +149,20 @@ def main(argv):
 						'version=',
 						'filter='])
 		except getopt.GetoptError as err:
-				print "exception", str(err)
+				sys.stderr.write(str(err))
 				sys.exit(2)
 		for opt, arg in opts:
 				#print(opt, arg)
 				if opt in ('-v', '--version'):
 						version = arg
 				elif opt in ('-s', '--severe'):
-						callback = get_severe_erros
+						callback = get_severe_errors
 				elif opt in ('-e', '--error'):
 						callback = get_errors
 				elif opt in ('-f', '--filter'):
 						callback = filter_error
 						params['keyword'] = arg
-		if not callback:
-				print("callback == None")
-				return
+		assert callback != None
 		if version:
 				get_info_of_version(version, callback, params)
 		else:
