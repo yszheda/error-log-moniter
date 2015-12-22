@@ -153,20 +153,18 @@ def get_all_latest_info(callback):
 		return;
 
 def main(argv):
-#		try:
-#				opts, args = getopt.getopt(argv, "s:a:")
-#		except getopt.GetoptError:
-#				print("except")
-#				sys.exit(2)
-#		
-#		for opt, arg in opts:
-#				print(opt, arg)
-#				if opt == '-s':
-#						get_all_latest_severe_errors()
-#				elif opt == '-a':
-#						get_all_latest_errors()
+		try:
+				opts, args = getopt.getopt(argv, "se")
+		except getopt.GetoptError as err:
+				print "exception", str(err)
+				sys.exit(2)
+		for opt, arg in opts:
+				#print(opt, arg)
+				if opt == '-s':
+						get_all_latest_info(get_severe_erros)
+				elif opt == '-e':
+						get_all_latest_info(get_errors)
 
-		get_all_latest_info(get_top_errors)
 
 if __name__ == "__main__":
 		main(sys.argv[1:])
