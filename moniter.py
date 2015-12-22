@@ -2,6 +2,7 @@
 import MySQLdb
 import sys, getopt
 import ConfigParser
+from contextlib import closing
 
 ########################################
 DB_CONF = "db.conf"
@@ -29,25 +30,24 @@ TOP_RECORD_NUM = configParser.getint(DISPLAY_OPTION_SECTION, 'top_record_num')
 
 ########################################
 def query(db_name, sql, params = None):
-		db = MySQLdb.connect(host = HOST,
-						port = PORT,
-						user = USER,
-						passwd = PASSWD,
-						db = db_name)
+		def connect_db():
+				return MySQLdb.connect(host = HOST,
+								port = PORT,
+								user = USER,
+								passwd = PASSWD,
+								db = db_name)
 
-		cursor = db.cursor()
-		cursor.execute(sql, params)
+		with closing(connect_db()) as db:
+				with closing(db.cursor()) as cursor:
+						cursor.execute(sql, params)
 
-		rows = []
-		row = cursor.fetchone()
-		while row is not None:
-#				print(row)
-				rows.append(row)
-				row = cursor.fetchone()
-		
-		cursor.close()
-		db.close()
-		return rows;
+						rows = []
+						row = cursor.fetchone()
+						while row is not None:
+								#print(row)
+								rows.append(row)
+								row = cursor.fetchone()
+						return rows;
 
 def get_latest_versions():
 		SQL = """
