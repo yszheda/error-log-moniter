@@ -55,3 +55,10 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Conf
+*.conf
+*.ini
+
+# Tmp files
+*~
