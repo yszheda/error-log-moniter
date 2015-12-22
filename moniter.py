@@ -146,25 +146,59 @@ def get_top_errors(version):
 		print("========================================")
 		return;
 
-########################################
-def get_info_of_version(version, callback):
-		assert version != None
-		callback(version)
+def filter_error(version, args):
+		keyword = args.get('keyword')
+		is_crash = args.get('is_crash')
 
-def get_all_latest_info(callback):
+		SELECT_PHRASE = " SELECT log, COUNT(*) AS cnt "
+		FROM_PHRASE = " FROM crash_log "
+		WHERE_PHRASE = " WHERE version = %s "
+		params = (version, )
+		paramsList = list(params)
+		if keyword:
+				WHERE_PHRASE = WHERE_PHRASE + " AND log LIKE '%%'%s'%%' "
+				paramsList.append(keyword)
+		if is_crash:
+				WHERE_PHRASE = WHERE_PHRASE + " AND is_crash=%d "
+				paramsList.append(is_crash)
+		GROUP_PHRASE = " GROUP BY log "
+		ORDER_PHRASE = " ORDER BY cnt DESC "
+
+		SQL = SELECT_PHRASE + FROM_PHRASE + WHERE_PHRASE + GROUP_PHRASE + ORDER_PHRASE
+
+		print("========================================")
+		print "filter_error"
+		print(version)
+		rows = query(CRASH_DB_NAME, SQL, tuple(paramsList))
+		for row in rows:
+#				print(row)
+				print "error times:", row[1]
+				print "log:\n" + row[0]
+				print("----------------------------------------")
+		print("========================================")
+		return;
+
+########################################
+def get_info_of_version(version, callback, params):
+		assert version != None
+		callback(version, params)
+
+def get_all_latest_info(callback, params):
 		latestVersions = get_latest_versions()
 		for version in latestVersions.keys():
-				get_info_of_version(version, callback)
+				get_info_of_version(version, callback, params)
 		return;
 ########################################
 
 def main(argv):
 		callback = None
 		version = None
+		params = {}
 		try:
-				opts, args = getopt.getopt(argv, "sev:", ['severe',
+				opts, args = getopt.getopt(argv, "sev:f:", ['severe',
 						'error',
-						'version='])
+						'version=',
+						'filter='])
 		except getopt.GetoptError as err:
 				print "exception", str(err)
 				sys.exit(2)
@@ -176,13 +210,16 @@ def main(argv):
 						callback = get_severe_erros
 				elif opt in ('-e', '--error'):
 						callback = get_errors
+				elif opt in ('-f', '--filter'):
+						callback = filter_error
+						params['keyword'] = arg
 		if not callback:
 				print("callback == None")
 				return
 		if version:
-				get_info_of_version(callback)
+				get_info_of_version(version, callback, params)
 		else:
-				get_all_latest_info(callback)
+				get_all_latest_info(callback, params)
 
 
 if __name__ == "__main__":
