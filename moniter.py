@@ -144,10 +144,13 @@ def main(argv):
 		version = None
 		params = {}
 		try:
-				opts, args = getopt.getopt(argv, "sev:f:", ['severe',
+				opts, args = getopt.getopt(argv, "sev:f:c:l:t:", ['severe',
 						'error',
 						'version=',
-						'filter='])
+						'filter=',
+						'iscrash=',
+						'limit=',
+						'threshold='])
 		except getopt.GetoptError as err:
 				sys.stderr.write(str(err))
 				sys.exit(2)
@@ -162,6 +165,15 @@ def main(argv):
 				elif opt in ('-f', '--filter'):
 						callback = filter_error
 						params['keyword'] = arg
+				elif opt in ('-c', '--iscrash'):
+						callback = filter_error
+						params['is_crash'] = arg
+				elif opt in ('-l', '--limit'):
+						callback = filter_error
+						params['limit'] = arg
+				elif opt in ('-t', '--threshold'):
+						callback = filter_error
+						params['threshold'] = arg
 		assert callback != None
 		if version:
 				get_info_of_version(version, callback, params)
