@@ -2,6 +2,7 @@
 import MySQLdb
 import sys, getopt
 import ConfigParser
+import os
 from contextlib import closing
 
 ########################################
@@ -127,6 +128,22 @@ def filter_error(version, args = {}):
 		print("========================================")
 		return;
 
+def sync_crash(version, *args):
+		CRASH_CONF = "crash.conf"
+		REMOTE_SESSION = "Remote"
+		LOCAL_SESSION = "Local"
+		configParser = ConfigParser.ConfigParser()
+		configParser.read(CRASH_CONF)
+		HOST = configParser.get(REMOTE_SESSION, 'host')
+		PORT = configParser.getint(REMOTE_SESSION, 'port')
+		USER = configParser.get(REMOTE_SESSION, 'user')
+		REMOTE_DIR_ROOT = configParser.get(REMOTE_SESSION, 'crash_log')
+		CRASH_LOG_ROOT = configParser.get(LOCAL_SESSION, 'crash_log')
+		DUMP_FILE_ROOT = configParser.get(LOCAL_SESSION, 'dump_file')
+		SYMBOL_ROOT = configParser.get(LOCAL_SESSION, 'symbol')
+		CMD = "./rsync-crash.sh %s %s %s %s %s %s %s %s " % (version, HOST, PORT, USER, REMOTE_DIR_ROOT, CRASH_LOG_ROOT, DUMP_FILE_ROOT, SYMBOL_ROOT)
+		os.system(CMD)
+
 ########################################
 def get_info_of_version(version, callback, params = None):
 		assert version != None
@@ -144,13 +161,14 @@ def main(argv):
 		version = None
 		params = {}
 		try:
-				opts, args = getopt.getopt(argv, "sev:f:c:l:t:", ['severe',
+				opts, args = getopt.getopt(argv, "sev:f:c:l:t:C", ['severe',
 						'error',
 						'version=',
 						'filter=',
 						'iscrash=',
 						'limit=',
-						'threshold='])
+						'threshold=',
+						'syncrash'])
 		except getopt.GetoptError as err:
 				sys.stderr.write(str(err))
 				sys.exit(2)
@@ -174,6 +192,8 @@ def main(argv):
 				elif opt in ('-t', '--threshold'):
 						callback = filter_error
 						params['threshold'] = arg
+				elif opt in ('-C', '--syncrash'):
+						callback = sync_crash
 		assert callback != None
 		if version:
 				get_info_of_version(version, callback, params)
