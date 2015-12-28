@@ -206,6 +206,9 @@ def send_mail():
 		header = """From: %s <%s>
 To: %s <%s>
 Subject: %s
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain;charset=utf-8
 
 """
 		MAIL_CONF = "mail.conf"
