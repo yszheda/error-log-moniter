@@ -4,6 +4,8 @@ import sys, getopt
 import ConfigParser
 import os
 from contextlib import closing
+import smtplib
+import json
 
 ########################################
 DB_CONF = "db.conf"
@@ -50,6 +52,7 @@ def query(db_name, sql, params = None):
 								row = cursor.fetchone()
 						return rows;
 
+########################################
 def get_latest_versions():
 		SQL = """
 				SELECT v.v1, MAX(v.v2), v.v3, vr.lang, vr.created_at
@@ -74,11 +77,46 @@ def get_latest_versions():
 			lang2Version[row[3]] = version
 			latestVersions[version] = True
 
+		print gen_version_report(lang2Version)
+
+		return latestVersions, lang2Version;
+
+def gen_version_report(lang2Version):
+		report = "========================================\n"
+		report = report + "Latest version of each language:\n"
+		report = report + "========================================\n"
+		report = report + "Language\tLatest Version\n"
+		report = report + "----------------------------------------\n"
 		for k, v in lang2Version.items():
-				print k, ':', v
+				report = report + str(k) + '\t\t' + str(v) + '\n'
+#		report = report + "========================================\n"
+		return report
 
-		return latestVersions;
+########################################
+def get_error_number(version, args = {}):
+		is_crash = args.get('is_crash')
 
+		SQL = """
+		SELECT COUNT(*)
+		FROM crash_log
+		WHERE version = %s
+		AND is_crash = %s
+		"""
+
+		params = (version, )
+		paramsList = list(params)
+		paramsList.append(is_crash)
+
+		return query(CRASH_DB_NAME, SQL, tuple(paramsList))
+
+def gen_error_num_report(version):
+		# first column in the first row of query result
+		error_num = (get_error_number(version, { 'is_crash': 0 }))[0][0]
+		crash_num = (get_error_number(version, { 'is_crash': 1 }))[0][0]
+		report = "%s\t%d\t%d\n" % (version, error_num, crash_num)
+		return report
+
+########################################
 def get_severe_errors(version, *args):
 		filter_error(version, { 'threshold': SEVERE_ERROR_THRESHOLD })
 
@@ -103,7 +141,7 @@ def filter_error(version, args = {}):
 				WHERE_PHRASE = WHERE_PHRASE + " AND log LIKE '%%'%s'%%' "
 				paramsList.append(keyword)
 		if is_crash:
-				WHERE_PHRASE = WHERE_PHRASE + " AND is_crash=%d "
+				WHERE_PHRASE = WHERE_PHRASE + " AND is_crash=%s "
 				paramsList.append(is_crash)
 		GROUP_PHRASE = " GROUP BY log "
 		ORDER_PHRASE = " ORDER BY cnt DESC "
@@ -120,14 +158,22 @@ def filter_error(version, args = {}):
 		print("========================================")
 		print "version:", version
 		rows = query(CRASH_DB_NAME, SQL, tuple(paramsList))
-		for row in rows:
-#				print(row)
-				print "error times:", row[1]
-				print "log:\n" + row[0]
-				print("----------------------------------------")
+		print gen_error_info_report(rows)
 		print("========================================")
-		return;
+		return rows;
 
+def gen_error_info_report(rows):
+		report = "\n"
+		num = 1
+		for row in rows:
+				report = report + "Top. %d\n" % num
+				report = report + "Error times:" + str(row[1]) + "\n"
+				report = report + "Error log:\n" + row[0] + "\n"
+				report = report + "----------------------------------------\n"
+				num = num + 1
+		return report
+
+########################################
 def sync_crash(version, *args):
 		CRASH_CONF = "crash.conf"
 		REMOTE_SESSION = "Remote"
@@ -143,32 +189,90 @@ def sync_crash(version, *args):
 		SYMBOL_ROOT = configParser.get(LOCAL_SESSION, 'symbol')
 		CMD = "./rsync-crash.sh %s %s %s %s %s %s %s %s " % (version, HOST, PORT, USER, REMOTE_DIR_ROOT, CRASH_LOG_ROOT, DUMP_FILE_ROOT, SYMBOL_ROOT)
 		os.system(CMD)
-
 ########################################
 def get_info_of_version(version, callback, params = None):
 		assert version != None
 		callback(version, params)
 
 def get_all_latest_info(callback, params = None):
-		latestVersions = get_latest_versions()
+		latestVersions, _ = get_latest_versions()
 		for version in latestVersions.keys():
 				get_info_of_version(version, callback, params)
 		return;
-########################################
 
+########################################
+def send_mail():
+		# NOTE: do not add indent!
+		header = """From: %s <%s>
+To: %s <%s>
+Subject: %s
+
+"""
+		MAIL_CONF = "mail.conf"
+		MAIL_SESSION = "Mail"
+		configParser = ConfigParser.ConfigParser()
+		configParser.read(MAIL_CONF)
+		SENDER_NAME = configParser.get(MAIL_SESSION, 'sender_name')
+		SENDER = configParser.get(MAIL_SESSION, 'sender')
+		RECEIVER_NAME = configParser.get(MAIL_SESSION, 'receiver_name')
+		RECEIVER = configParser.get(MAIL_SESSION, 'receiver')
+#		SUBSCRIBERS = json.loads(configParser.get(MAIL_SESSION, 'subscribers'))
+		SUBSCRIBERS = configParser.get(MAIL_SESSION, 'subscribers').split()
+		SUBJECT = configParser.get(MAIL_SESSION, 'subject')
+		content = configParser.get(MAIL_SESSION, 'content')
+
+		header = header % (SENDER_NAME, SENDER, RECEIVER_NAME, RECEIVER, SUBJECT)
+
+		latestVersions, lang2Version = get_latest_versions()
+		report = gen_version_report(lang2Version)
+
+		report = report + "\n========================================\n"
+		report = report + "Total error/crash number of each version:\n"
+		report = report + "========================================\n"
+		report = report + "Version\tError\tCrash\n"
+		for version in latestVersions.keys():
+				report = report + gen_error_num_report(version)
+
+		report = report + "\n========================================\n"
+		report = report + "Top 10 error log of each version:\n"
+		report = report + "========================================\n"
+		for version in latestVersions.keys():
+				report = report + "----------------------------------------\n"
+				report = report + "Version: %s\n" % version
+				report = report + "----------------------------------------\n"
+				rows = filter_error(version, { 'limit': TOP_RECORD_NUM, 'is_crash': 0 })
+				report = report + gen_error_info_report(rows)
+
+		content = content + "\n" + report
+
+		message = header + "\n" + content
+		print(SUBSCRIBERS)
+
+		try:
+				smtpObj = smtplib.SMTP('localhost')
+				smtpObj.sendmail(SENDER, SUBSCRIBERS, message)
+				print "Successfully sent email"
+		except SMTPException:
+				print "Error: unable to send email"
+
+		return;
+
+########################################
 def main(argv):
 		callback = None
 		version = None
 		params = {}
 		try:
-				opts, args = getopt.getopt(argv, "sev:f:c:l:t:C", ['severe',
+				opts, args = getopt.getopt(argv, "sev:f:c:l:t:CMT", ['severe',
 						'error',
 						'version=',
 						'filter=',
 						'iscrash=',
 						'limit=',
 						'threshold=',
-						'syncrash'])
+						'syncrash',
+						'mail',
+						'top'])
 		except getopt.GetoptError as err:
 				sys.stderr.write(str(err))
 				sys.exit(2)
@@ -194,6 +298,11 @@ def main(argv):
 						params['threshold'] = arg
 				elif opt in ('-C', '--syncrash'):
 						callback = sync_crash
+				elif opt in ('-T', '--top'):
+						callback = get_top_errors
+				elif opt in ('-M', '--mail'):
+						send_mail()
+						sys.exit(0)
 		assert callback != None
 		if version:
 				get_info_of_version(version, callback, params)
