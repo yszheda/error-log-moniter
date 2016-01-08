@@ -203,7 +203,7 @@ def get_all_latest_info(callback, params = None):
 ########################################
 def send_mail():
 		# NOTE: do not add indent!
-		header = """From: %s <%s>
+		headerFormat = """From: %s <%s>
 To: %s <%s>
 Subject: %s
 MIME-Version: 1.0
@@ -223,8 +223,6 @@ Content-Type: text/plain;charset=utf-8
 		SUBSCRIBERS = configParser.get(MAIL_SESSION, 'subscribers').split()
 		SUBJECT = configParser.get(MAIL_SESSION, 'subject')
 		content = configParser.get(MAIL_SESSION, 'content')
-
-		header = header % (SENDER_NAME, SENDER, RECEIVER_NAME, RECEIVER, SUBJECT)
 
 		latestVersions, lang2Version = get_latest_versions()
 		report = gen_version_report(lang2Version)
@@ -248,15 +246,16 @@ Content-Type: text/plain;charset=utf-8
 
 		content = content + "\n" + report
 
-		message = header + "\n" + content
-		print(SUBSCRIBERS)
-
-		try:
-				smtpObj = smtplib.SMTP('localhost')
-				smtpObj.sendmail(SENDER, SUBSCRIBERS, message)
-				print "Successfully sent email"
-		except SMTPException:
-				print "Error: unable to send email"
+		for i, subscriber in enumerate(SUBSCRIBERS):
+				print i, subscriber
+				header = headerFormat % (SENDER_NAME, SENDER, subscriber, RECEIVER, SUBJECT)
+				message = header + "\n" + content
+				try:
+						smtpObj = smtplib.SMTP('localhost')
+						smtpObj.sendmail(SENDER, subscriber, message)
+						print "Successfully sent email to ", subscriber
+				except SMTPException:
+						print "Error: unable to send email to ", subscriber
 
 		return;
 
