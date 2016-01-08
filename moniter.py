@@ -248,7 +248,7 @@ Content-Type: text/plain;charset=utf-8
 
 		for i, subscriber in enumerate(SUBSCRIBERS):
 				print i, subscriber
-				header = headerFormat % (SENDER_NAME, SENDER, subscriber, RECEIVER, SUBJECT)
+				header = headerFormat % (SENDER_NAME, SENDER, subscriber, subscriber, SUBJECT)
 				message = header + "\n" + content
 				try:
 						smtpObj = smtplib.SMTP('localhost')
