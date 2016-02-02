@@ -9,8 +9,8 @@ import json
 
 ########################################
 DB_CONF = "db.conf"
-CONNECT_SECTION = "Connect"
-DB_SECTION = "Database"
+VERSION_SECTION = "Version"
+ERROR_SECTION = "Error"
 ########################################
 QUERY_CONF = "query.conf"
 SEVERE_ERROR_SECTION = "SevereError"
@@ -19,28 +19,29 @@ DISPLAY_OPTION_SECTION = "DisplayOption"
 
 configParser = ConfigParser.ConfigParser()
 
-configParser.read(DB_CONF)
-HOST = configParser.get(CONNECT_SECTION, 'host')
-PORT = configParser.getint(CONNECT_SECTION, 'port')
-USER = configParser.get(CONNECT_SECTION, 'user')
-PASSWD = configParser.get(CONNECT_SECTION, 'passwd')
-VERSION_DB_NAME = configParser.get(DB_SECTION, 'version')
-CRASH_DB_NAME = configParser.get(DB_SECTION, 'error')
-
 configParser.read(QUERY_CONF)
 SEVERE_ERROR_THRESHOLD = configParser.getint(SEVERE_ERROR_SECTION, 'threshold')
 TOP_RECORD_NUM = configParser.getint(DISPLAY_OPTION_SECTION, 'top_record_num')
 
 ########################################
-def query(db_name, sql, params = None):
-		def connect_db():
-				return MySQLdb.connect(host = HOST,
-								port = PORT,
-								user = USER,
-								passwd = PASSWD,
+def query(db_section, sql, params = None):
+
+		def connect_db(host, port, user, passwd, db_name):
+				return MySQLdb.connect(host = host,
+								port = port,
+								user = user,
+								passwd = passwd,
 								db = db_name)
 
-		with closing(connect_db()) as db:
+		configParser = ConfigParser.ConfigParser()
+		configParser.read(DB_CONF)
+		host = configParser.get(db_section, 'host')
+		port = configParser.getint(db_section, 'port')
+		user = configParser.get(db_section, 'user')
+		passwd = configParser.get(db_section, 'passwd')
+		db_name = configParser.get(db_section, 'db_name')
+
+		with closing(connect_db(host, port, user, passwd, db_name)) as db:
 				with closing(db.cursor()) as cursor:
 						cursor.execute(sql, params)
 
@@ -65,7 +66,7 @@ def get_latest_versions():
 				GROUP BY vr.lang
 		"""
 
-		rows = query(VERSION_DB_NAME, SQL)
+		rows = query(VERSION_SECTION, SQL)
 
 		lang2Version = {}
 		latestVersions = {}
@@ -107,7 +108,7 @@ def get_error_number(version, args = {}):
 		paramsList = list(params)
 		paramsList.append(is_crash)
 
-		return query(CRASH_DB_NAME, SQL, tuple(paramsList))
+		return query(ERROR_SECTION, SQL, tuple(paramsList))
 
 def gen_error_num_report(version):
 		# first column in the first row of query result
@@ -157,7 +158,7 @@ def filter_error(version, args = {}):
 
 		print("========================================")
 		print "version:", version
-		rows = query(CRASH_DB_NAME, SQL, tuple(paramsList))
+		rows = query(ERROR_SECTION, SQL, tuple(paramsList))
 		print gen_error_info_report(rows)
 		print("========================================")
 		return rows;
