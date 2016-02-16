@@ -3,6 +3,7 @@ import MySQLdb
 import sys, getopt
 import ConfigParser
 import os
+import datetime
 from contextlib import closing
 import smtplib
 import json
@@ -54,6 +55,23 @@ def query(db_section, sql, params = None):
 						return rows;
 
 ########################################
+def get_all_versions():
+		SQL = """
+				SELECT v.created_at, CONCAT(v.v1, ".", MAX(v.v2), ".", v.v3) AS version
+				FROM version v, version_resources vr
+				WHERE v.id = vr.version_id
+				AND v.is_publish = 1
+				GROUP BY v.created_at
+		"""
+		rows = query(VERSION_SECTION, SQL)
+		all_versions = []
+		for row in rows:
+				created_time = str(row[0])
+				version = str(row[1])
+				all_versions.append((created_time, version))
+		sorted(all_versions, key = lambda created_time: all_versions[0])
+		return all_versions
+
 def get_latest_versions():
 		SQL = """
 				SELECT v.v1, MAX(v.v2), v.v3, vr.lang, vr.created_at
@@ -115,6 +133,22 @@ def gen_error_num_report(version):
 		error_num = (get_error_number(version, { 'is_crash': 0 }))[0][0]
 		crash_num = (get_error_number(version, { 'is_crash': 1 }))[0][0]
 		report = "%s\t%d\t%d\n" % (version, error_num, crash_num)
+		return report
+
+def gen_all_error_report():
+		all_versions = get_all_versions()
+		report = "\n========================================\n"
+		report = report + "Total error/crash number of each version:\n"
+		report = report + "========================================\n"
+		report = report + "CreatedTimeStamp\tCreatedTime\tVersion\tError\tCrash\n"
+		for version_info in all_versions:
+				created_timestamp = int(version_info[0])
+				created_time = datetime.datetime.fromtimestamp(created_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+				version = version_info[1]
+				error_num = (get_error_number(version, { 'is_crash': 0 }))[0][0]
+				crash_num = (get_error_number(version, { 'is_crash': 1 }))[0][0]
+				report = report + "\n%d\t%s\t%s\t%d\t%d\n" % (created_timestamp, created_time, version, error_num, crash_num)
+				print "%d\t%s\t%s\t%d\t%d" % (created_timestamp, created_time, version, error_num, crash_num)
 		return report
 
 ########################################
@@ -199,7 +233,6 @@ def get_all_latest_info(callback, params = None):
 		latestVersions, _ = get_latest_versions()
 		for version in latestVersions.keys():
 				get_info_of_version(version, callback, params)
-		return;
 
 ########################################
 def send_mail():
@@ -266,8 +299,9 @@ def main(argv):
 		version = None
 		params = {}
 		try:
-				opts, args = getopt.getopt(argv, "sev:f:c:l:t:CMT", ['severe',
+				opts, args = getopt.getopt(argv, "seEv:f:c:l:t:CMT", ['severe',
 						'error',
+						'error-report',
 						'version=',
 						'filter=',
 						'iscrash=',
@@ -287,6 +321,9 @@ def main(argv):
 						callback = get_severe_errors
 				elif opt in ('-e', '--error'):
 						callback = get_errors
+				elif opt in ('-E', '--error-report'):
+						print gen_all_error_report()
+						sys.exit(0)
 				elif opt in ('-f', '--filter'):
 						callback = filter_error
 						params['keyword'] = arg
