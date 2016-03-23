@@ -277,13 +277,8 @@ def get_all_latest_info(callback, params=None):
 
 
 def send_mail():
-    # NOTE: do not add indent!
-    headerFormat = """From: %s <%s>
-    To: %s <%s>
-    Subject: %s
-    MIME-Version: 1.0
-    Content-Transfer-Encoding: 8bit
-    Content-Type: text/plain;charset=utf-8"""
+    # NOTE: do not add indent and line break!
+    headerFormat = """From: %s <%s>\nTo: %s <%s>\nSubject: %s\nMIME-Version: 1.0\nContent-Transfer-Encoding: 8bit\nContent-Type: text/plain;charset=utf-8"""
 
     MAIL_CONF = "mail.conf"
     MAIL_SESSION = "Mail"
@@ -308,27 +303,31 @@ def send_mail():
     for version in latestVersions.keys():
         report = report + gen_error_num_report(version)
         report = report + "\n" + gen_all_error_report()
-        report = report + "\n========================================\n"
-        report = report + "Top 10 error log of each version:\n"
-        report = report + "========================================\n"
-        for version in latestVersions.keys():
-            report = report + "----------------------------------------\n"
-            report = report + "Version: %s\n" % version
-            report = report + "----------------------------------------\n"
-            rows = filter_error(version, {'limit': TOP_RECORD_NUM,
-                                          'is_crash': 0})
-            report = report + gen_error_info_report(rows)
-            content = content + "\n" + report
-            for i, subscriber in enumerate(SUBSCRIBERS):
-                print i, subscriber
-                header = headerFormat % (SENDER_NAME, SENDER, subscriber, subscriber, SUBJECT)
-                message = header + "\n" + content
-                try:
-                    smtpObj = smtplib.SMTP('localhost')
-                    smtpObj.sendmail(SENDER, subscriber, message)
-                    print "Successfully sent email to ", subscriber
-                except SMTPException:
-                    print "Error: unable to send email to ", subscriber
+
+    report = report + "\n========================================\n"
+    report = report + "Top 10 error log of each version:\n"
+    report = report + "========================================\n"
+
+    for version in latestVersions.keys():
+        report = report + "----------------------------------------\n"
+        report = report + "Version: %s\n" % version
+        report = report + "----------------------------------------\n"
+        rows = filter_error(version, {'limit': TOP_RECORD_NUM,
+                                      'is_crash': 0})
+        report = report + gen_error_info_report(rows)
+
+    content = content + "\n" + report
+
+    for i, subscriber in enumerate(SUBSCRIBERS):
+        print i, subscriber
+        header = headerFormat % (SENDER_NAME, SENDER, subscriber, subscriber, SUBJECT)
+        message = header + "\n" + content
+        try:
+            smtpObj = smtplib.SMTP('localhost')
+            smtpObj.sendmail(SENDER, subscriber, message)
+            print "Successfully sent email to ", subscriber
+        except SMTPException:
+            print "Error: unable to send email to ", subscriber
 
 
 def main(argv):
