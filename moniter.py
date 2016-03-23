@@ -98,7 +98,7 @@ def get_latest_versions():
 
 		print gen_version_report(lang2Version)
 
-		return latestVersions, lang2Version;
+		return latestVersions, lang2Version
 
 def gen_version_report(lang2Version):
 		report = "========================================\n"
@@ -112,6 +112,16 @@ def gen_version_report(lang2Version):
 		return report
 
 ########################################
+def get_latest_time(version):
+		SQL = """
+		SELECT MAX(time)
+		FROM crash_log
+		WHERE version = %s
+		"""
+		params = (version, )
+		paramsList = list(params)
+		return query(ERROR_SECTION, SQL, tuple(paramsList))
+
 def get_error_number(version, args = {}):
 		is_crash = args.get('is_crash')
 
@@ -135,20 +145,37 @@ def gen_error_num_report(version):
 		report = "%s\t%d\t%d\n" % (version, error_num, crash_num)
 		return report
 
+def timestamp_to_string(timestamp):
+		return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+def get_avg_error_num(error_num, start_timestamp, end_timestamp):
+		timestamp_diff = end_timestamp - start_timestamp
+		avg_num_per_sec = error_num * 1.0 / timestamp_diff
+		avg_num_per_min = avg_num_per_sec * 60
+		avg_num_per_hour = avg_num_per_min * 60
+		avg_num_per_day = avg_num_per_hour * 24
+		return avg_num_per_day, avg_num_per_hour, avg_num_per_min, avg_num_per_sec
+
 def gen_all_error_report():
 		all_versions = get_all_versions()
 		report = "\n========================================\n"
 		report = report + "Total error/crash number of each version:\n"
 		report = report + "========================================\n"
-		report = report + "CreatedTimeStamp\tCreatedTime\tVersion\tError\tCrash\n"
+		report = report + "CreatedTime\tEndTime\tVersion\tError\tCrash\tCrashPerDay\tCrashPerHour\n"
 		for version_info in all_versions:
 				created_timestamp = int(version_info[0])
-				created_time = datetime.datetime.fromtimestamp(created_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+				created_time = timestamp_to_string(created_timestamp)
 				version = version_info[1]
 				error_num = (get_error_number(version, { 'is_crash': 0 }))[0][0]
 				crash_num = (get_error_number(version, { 'is_crash': 1 }))[0][0]
-				report = report + "\n%d\t%s\t%s\t%d\t%d\n" % (created_timestamp, created_time, version, error_num, crash_num)
-				print "%d\t%s\t%s\t%d\t%d" % (created_timestamp, created_time, version, error_num, crash_num)
+				if crash_num > 0:
+						latest_timestamp = (get_latest_time(version))[0][0]
+						latest_time = timestamp_to_string(latest_timestamp)
+						crash_per_day, crash_per_hour, _, _ = get_avg_error_num(crash_num, created_timestamp, latest_timestamp)
+						crash_per_day = int(round(crash_per_day))
+						crash_per_hour = int(round(crash_per_hour))
+						report = report + "%s\t%s\t%s\t%d\t%d\t%d\t%d\n" % (created_time, latest_time, version, error_num, crash_num, crash_per_day, crash_per_hour)
+						print "%s\t%s\t%s\t%d\t%d\t%d\t%d" % (created_time, latest_time, version, error_num, crash_num, crash_per_day, crash_per_hour)
 		return report
 
 ########################################
@@ -267,6 +294,8 @@ Content-Type: text/plain;charset=utf-8
 		report = report + "Version\tError\tCrash\n"
 		for version in latestVersions.keys():
 				report = report + gen_error_num_report(version)
+
+		report = report + "\n" + gen_all_error_report()
 
 		report = report + "\n========================================\n"
 		report = report + "Top 10 error log of each version:\n"
