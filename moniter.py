@@ -64,11 +64,13 @@ def get_all_versions():
     GROUP BY v.created_at
     """
     rows = query(VERSION_SECTION, SQL)
+
     all_versions = []
     for row in rows:
         created_time = str(row[0])
         version = str(row[1])
         all_versions.append((created_time, version))
+
     sorted(all_versions, key=lambda created_time: all_versions[0])
     return all_versions
 
@@ -176,7 +178,7 @@ def gen_all_error_report():
             crash_per_hour = int(round(crash_per_hour))
             report = report + "%s\t%s\t%s\t%d\t%d\t%d\t%d\n" % (created_time, latest_time, version, error_num, crash_num, crash_per_day, crash_per_hour)
             print "%s\t%s\t%s\t%d\t%d\t%d\t%d" % (created_time, latest_time, version, error_num, crash_num, crash_per_day, crash_per_hour)
-        return report
+    return report
 
 
 def get_severe_errors(version, *args):
@@ -302,7 +304,8 @@ def send_mail():
 
     for version in latestVersions.keys():
         report = report + gen_error_num_report(version)
-        report = report + "\n" + gen_all_error_report()
+
+    report = report + "\n" + gen_all_error_report()
 
     report = report + "\n========================================\n"
     report = report + "Top 10 error log of each version:\n"
