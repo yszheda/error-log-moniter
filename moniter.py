@@ -161,8 +161,7 @@ def gen_all_error_report():
     report = "\n========================================\n"
     report = report + "Total error/crash number of each version:\n"
     report = report + "========================================\n"
-    report = report
-    + "CreatedTime\tEndTime\tVersion\tError\tCrash\tCrashPerDay\tCrashPerHour\n"
+    report = report + "CreatedTime\tEndTime\tVersion\tError\tCrash\tCrashPerDay\tCrashPerHour\n"
     for version_info in all_versions:
         created_timestamp = int(version_info[0])
         created_time = timestamp_to_string(created_timestamp)
