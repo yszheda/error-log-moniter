@@ -8,7 +8,10 @@ import os
 import datetime
 from contextlib import closing
 import smtplib
-# import json
+from email.MIMEMultipart import MIMEMultipart
+# from email.MIMEBase import MIMEBase
+from email.MIMEText import MIMEText
+# import email.Encoders as encoders
 
 ########################################
 DB_CONF = "db.conf"
@@ -294,20 +297,20 @@ def get_all_latest_info(callback, params=None):
 
 
 def send_mail():
-    # NOTE: do not add indent and line break!
-    headerFormat = """From: %s <%s>\nTo: %s <%s>\nSubject: %s\nMIME-Version: 1.0\nContent-Transfer-Encoding: 8bit\nContent-Type: text/plain;charset=utf-8"""
-
     MAIL_CONF = "mail.conf"
     MAIL_SESSION = "Mail"
 
     configParser = ConfigParser.ConfigParser()
     configParser.read(MAIL_CONF)
-
     sender_name = configParser.get(MAIL_SESSION, 'sender_name')
     sender = configParser.get(MAIL_SESSION, 'sender')
     subscribers = configParser.get(MAIL_SESSION, 'subscribers').split()
     subject = configParser.get(MAIL_SESSION, 'subject')
     content = configParser.get(MAIL_SESSION, 'content')
+
+    message = MIMEMultipart('alternative')
+    message['From'] = "%s <%s>" % (sender_name, sender)
+    message['Subject'] = subject
 
     latestVersions, lang2Version = get_latest_versions()
     report = gen_version_report(lang2Version)
@@ -336,19 +339,19 @@ def send_mail():
 
     content = content + "\n" + report
 
+    content = MIMEText(content, "plain", "utf-8")
+    message.attach(content)
     for i, subscriber in enumerate(subscribers):
         print i, subscriber
-        header = headerFormat % (sender_name,
-                                 sender,
-                                 subscriber,
-                                 subscriber,
-                                 subject)
-        message = header + "\n" + content
+
+        message['To'] = subscriber
+
         try:
             smtpObj = smtplib.SMTP('localhost')
-            smtpObj.sendmail(sender, subscriber, message)
+            smtpObj.sendmail(sender, subscriber, message.as_string())
             print "Successfully sent email to ", subscriber
-        except SMTPException:
+            smtpObj.quit()
+        except smtplib.SMTPException:
             print "Error: unable to send email to ", subscriber
 
 
