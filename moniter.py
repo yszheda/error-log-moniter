@@ -46,12 +46,14 @@ def query(db_section, sql, params=None):
     with closing(connect_db(host, port, user, passwd, db_name)) as db:
         with closing(db.cursor()) as cursor:
             cursor.execute(sql, params)
+
             rows = []
             row = cursor.fetchone()
             while row is not None:
                 # print(row)
                 rows.append(row)
                 row = cursor.fetchone()
+
             return rows
 
 
@@ -87,6 +89,7 @@ def get_latest_versions():
     GROUP BY vr.lang
     """
     rows = query(VERSION_SECTION, SQL)
+
     lang2Version = {}
     latestVersions = {}
     for row in rows:
@@ -96,6 +99,7 @@ def get_latest_versions():
         version = v1 + "." + v2 + "." + v3
         lang2Version[row[3]] = version
         latestVersions[version] = True
+
     print gen_version_report(lang2Version)
     return latestVersions, lang2Version
 
@@ -160,10 +164,12 @@ def get_avg_error_num(error_num, start_timestamp, end_timestamp):
 
 def gen_all_error_report():
     all_versions = get_all_versions()
+
     report = "\n========================================\n"
     report = report + "Total error/crash number of each version:\n"
     report = report + "========================================\n"
     report = report + "CreatedTime\tEndTime\tVersion\tError\tCrash\tCrashPerDay\tCrashPerHour\n"
+
     for version_info in all_versions:
         created_timestamp = int(version_info[0])
         created_time = timestamp_to_string(created_timestamp)
@@ -178,6 +184,7 @@ def gen_all_error_report():
             crash_per_hour = int(round(crash_per_hour))
             report = report + "%s\t%s\t%s\t%d\t%d\t%d\t%d\n" % (created_time, latest_time, version, error_num, crash_num, crash_per_day, crash_per_hour)
             print "%s\t%s\t%s\t%d\t%d\t%d\t%d" % (created_time, latest_time, version, error_num, crash_num, crash_per_day, crash_per_hour)
+
     return report
 
 
@@ -232,6 +239,7 @@ def filter_error(version, args={}):
     rows = query(ERROR_SECTION, SQL, tuple(paramsList))
     print gen_error_info_report(rows)
     print("========================================")
+
     return rows
 
 
@@ -255,16 +263,23 @@ def sync_crash(version, *args):
     configParser = ConfigParser.ConfigParser()
     configParser.read(CRASH_CONF)
 
-    HOST = configParser.get(REMOTE_SESSION, 'host')
-    PORT = configParser.getint(REMOTE_SESSION, 'port')
-    USER = configParser.get(REMOTE_SESSION, 'user')
-    REMOTE_DIR_ROOT = configParser.get(REMOTE_SESSION, 'crash_log')
-    CRASH_LOG_ROOT = configParser.get(LOCAL_SESSION, 'crash_log')
-    DUMP_FILE_ROOT = configParser.get(LOCAL_SESSION, 'dump_file')
-    SYMBOL_ROOT = configParser.get(LOCAL_SESSION, 'symbol')
+    host = configParser.get(REMOTE_SESSION, 'host')
+    port = configParser.getint(REMOTE_SESSION, 'port')
+    user = configParser.get(REMOTE_SESSION, 'user')
+    remote_dir_root = configParser.get(REMOTE_SESSION, 'crash_log')
+    crash_log_root = configParser.get(LOCAL_SESSION, 'crash_log')
+    dump_file_root = configParser.get(LOCAL_SESSION, 'dump_file')
+    symbol_root = configParser.get(LOCAL_SESSION, 'symbol')
 
-    CMD = "./rsync-crash.sh %s %s %s %s %s %s %s %s " % (version, HOST, PORT, USER, REMOTE_DIR_ROOT, CRASH_LOG_ROOT, DUMP_FILE_ROOT, SYMBOL_ROOT)
-    os.system(CMD)
+    cmd = "./rsync-crash.sh %s %s %s %s %s %s %s %s " % (version,
+                                                         host,
+                                                         port,
+                                                         user,
+                                                         remote_dir_root,
+                                                         crash_log_root,
+                                                         dump_file_root,
+                                                         symbol_root)
+    os.system(cmd)
 
 
 def get_info_of_version(version, callback, params=None):
@@ -288,10 +303,10 @@ def send_mail():
     configParser = ConfigParser.ConfigParser()
     configParser.read(MAIL_CONF)
 
-    SENDER_NAME = configParser.get(MAIL_SESSION, 'sender_name')
-    SENDER = configParser.get(MAIL_SESSION, 'sender')
-    SUBSCRIBERS = configParser.get(MAIL_SESSION, 'subscribers').split()
-    SUBJECT = configParser.get(MAIL_SESSION, 'subject')
+    sender_name = configParser.get(MAIL_SESSION, 'sender_name')
+    sender = configParser.get(MAIL_SESSION, 'sender')
+    subscribers = configParser.get(MAIL_SESSION, 'subscribers').split()
+    subject = configParser.get(MAIL_SESSION, 'subject')
     content = configParser.get(MAIL_SESSION, 'content')
 
     latestVersions, lang2Version = get_latest_versions()
@@ -321,13 +336,17 @@ def send_mail():
 
     content = content + "\n" + report
 
-    for i, subscriber in enumerate(SUBSCRIBERS):
+    for i, subscriber in enumerate(subscribers):
         print i, subscriber
-        header = headerFormat % (SENDER_NAME, SENDER, subscriber, subscriber, SUBJECT)
+        header = headerFormat % (sender_name,
+                                 sender,
+                                 subscriber,
+                                 subscriber,
+                                 subject)
         message = header + "\n" + content
         try:
             smtpObj = smtplib.SMTP('localhost')
-            smtpObj.sendmail(SENDER, subscriber, message)
+            smtpObj.sendmail(sender, subscriber, message)
             print "Successfully sent email to ", subscriber
         except SMTPException:
             print "Error: unable to send email to ", subscriber
