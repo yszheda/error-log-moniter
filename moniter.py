@@ -395,10 +395,10 @@ def main(argv):
             params['is_crash'] = arg
         elif opt in ('-l', '--limit'):
             callback = filter_error
-            params['limit'] = arg
+            params['limit'] = int(arg)
         elif opt in ('-t', '--threshold'):
             callback = filter_error
-            params['threshold'] = arg
+            params['threshold'] = int(arg)
         elif opt in ('-C', '--syncrash'):
             callback = sync_crash
         elif opt in ('-T', '--top'):
