@@ -153,8 +153,8 @@ def gen_error_num_report(version):
 
 
 def timestamp_to_string(timestamp):
-    return \
-        datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d'
+                                                               ' %H:%M:%S')
 
 
 def get_avg_error_num(error_num, start_timestamp, end_timestamp):
@@ -172,9 +172,8 @@ def gen_all_error_report():
     report = "\n========================================\n"
     report = report + "Total error/crash number of each version:\n"
     report = report + "========================================\n"
-    report = report + \
-        "CreatedTime\tEndTime\tVersion\tError\tCrash\tCrashPerDay\t\
-        CrashPerHour\n"
+    report = report
+    + "CreatedTime\tEndTime\tVersion\tError\tCrash\tCrashPerDay\tCrashPerHour\n"
 
     for version_info in all_versions:
         created_timestamp = int(version_info[0])
@@ -185,17 +184,19 @@ def gen_all_error_report():
         if crash_num > 0:
             latest_timestamp = (get_latest_time(version))[0][0]
             latest_time = timestamp_to_string(latest_timestamp)
-            crash_per_day, crash_per_hour, _, _ = \
-                get_avg_error_num(crash_num, created_timestamp,
-                                  latest_timestamp)
+            crash_per_day, crash_per_hour, _, _ \
+                = get_avg_error_num(crash_num,
+                                    created_timestamp,
+                                    latest_timestamp)
             crash_per_day = int(round(crash_per_day))
             crash_per_hour = int(round(crash_per_hour))
-            report = report + "%s\t%s\t%s\t%d\t%d\t%d\t%d\n" % \
-                (created_time, latest_time, version, error_num, crash_num,
-                 crash_per_day, crash_per_hour)
+            report = report
+            + "%s\t%s\t%s\t%d\t%d\t%d\t%d\n" % (created_time, latest_time,
+                                                version, error_num, crash_num,
+                                                crash_per_day, crash_per_hour)
             print "%s\t%s\t%s\t%d\t%d\t%d\t%d" % \
-                (created_time, latest_time, version, error_num, crash_num,
-                 crash_per_day, crash_per_hour)
+                (created_time, latest_time, version, error_num,
+                 crash_num, crash_per_day, crash_per_hour)
 
     return report
 
@@ -240,8 +241,8 @@ def filter_error(version, args={}):
         LIMIT_PHRASE = " LIMIT %s "
         paramsList.append(limit)
 
-    SQL = SELECT_PHRASE + FROM_PHRASE + WHERE_PHRASE + GROUP_PHRASE + \
-        ORDER_PHRASE + LIMIT_PHRASE
+    SQL = SELECT_PHRASE + FROM_PHRASE + WHERE_PHRASE + GROUP_PHRASE
+    + ORDER_PHRASE + LIMIT_PHRASE
 
     if threshold:
         SQL = "SELECT * FROM (" + SQL + ") AS error_logs WHERE cnt >= %s "
