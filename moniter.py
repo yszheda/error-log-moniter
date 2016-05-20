@@ -144,11 +144,12 @@ def get_error_number(version, args={}):
     return query(ERROR_SECTION, SQL, tuple(paramsList))
 
 
-def gen_error_num_report(version):
+def gen_error_num_report(version, *args):
     # first column in the first row of query result
     error_num = (get_error_number(version, {'is_crash': 0}))[0][0]
     crash_num = (get_error_number(version, {'is_crash': 1}))[0][0]
     report = "%s\t%d\t%d\n" % (version, error_num, crash_num)
+    print "%s\t%d\t%d\n" % (version, error_num, crash_num)
     return report
 
 
@@ -376,17 +377,18 @@ def main(argv):
     params = {}
 
     try:
-        opts, args = getopt.getopt(argv, "seEv:f:c:l:t:CMT", ['severe',
-                                                              'error',
-                                                              'error-report',
-                                                              'version=',
-                                                              'filter=',
-                                                              'iscrash=',
-                                                              'limit=',
-                                                              'threshold=',
-                                                              'syncrash',
-                                                              'mail',
-                                                              'top'])
+        opts, args = getopt.getopt(argv, "seEv:f:c:l:t:CMTn", ['severe',
+                                                               'error',
+                                                               'error-report',
+                                                               'version=',
+                                                               'filter=',
+                                                               'iscrash=',
+                                                               'limit=',
+                                                               'threshold=',
+                                                               'syncrash',
+                                                               'mail',
+                                                               'top',
+                                                               'num'])
     except getopt.GetoptError as err:
         sys.stderr.write(str(err))
         sys.exit(2)
@@ -418,6 +420,9 @@ def main(argv):
             callback = sync_crash
         elif opt in ('-T', '--top'):
             callback = get_top_errors
+        elif opt in ('-n', '--num'):
+            callback = gen_error_num_report
+            params = None
         elif opt in ('-M', '--mail'):
             send_mail()
             sys.exit(0)
