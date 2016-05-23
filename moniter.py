@@ -5,6 +5,7 @@ import sys
 import getopt
 import ConfigParser
 import os
+import re
 import datetime
 from contextlib import closing
 import smtplib
@@ -263,12 +264,23 @@ def filter_error(version, args={}):
 
 
 def gen_error_info_report(rows):
+    merged_rows = {}
+    for row in rows:
+        msg = re.sub('\[.*\]\:', '', row[0])
+        times = row[1]
+        if msg in merged_rows.keys():
+            merged_rows[msg] += times
+        else:
+            merged_rows[msg] = times
+
     report = "\n"
     num = 1
-    for row in rows:
+    for error_msg, error_times in sorted(merged_rows.iteritems(),
+                                         key=lambda (k, v): (v, k),
+                                         reverse=True):
         report = report + "Top. %d\n" % num
-        report = report + "Error times:" + str(row[1]) + "\n"
-        report = report + "Error log:\n" + row[0] + "\n"
+        report = report + "Error times:" + str(error_times) + "\n"
+        report = report + "Error log:\n" + error_msg + "\n"
         report = report + "----------------------------------------\n"
         num = num + 1
     return report
