@@ -23,12 +23,12 @@ QUERY_CONF = "query.conf"
 SEVERE_ERROR_SECTION = "SevereError"
 DISPLAY_OPTION_SECTION = "DisplayOption"
 ########################################
-
 configParser = ConfigParser.ConfigParser()
 
 configParser.read(QUERY_CONF)
 SEVERE_ERROR_THRESHOLD = configParser.getint(SEVERE_ERROR_SECTION, 'threshold')
 TOP_RECORD_NUM = configParser.getint(DISPLAY_OPTION_SECTION, 'top_record_num')
+########################################
 
 
 def query(db_section, sql, params=None):
@@ -348,7 +348,7 @@ def send_mail():
     for version in latestVersions.keys():
         report = report + gen_error_num_report(version)
 
-    report = report + "\n" + gen_all_error_report()
+    # report = report + "\n" + gen_all_error_report()
 
     report = report + "\n========================================\n"
     report = report + "Top 10 error log of each version:\n"
@@ -380,30 +380,21 @@ def send_mail():
             print "Error: unable to send email to ", subscriber
 
 
-def main(argv):
+rules = (
+    (('-M', '--mail'), send_mail),
+)
+
+
+def handle_opts(opts):
     callback = None
     version = None
     params = {}
 
-    try:
-        opts, args = getopt.getopt(argv, "seEv:f:c:l:t:CMTn", ['severe',
-                                                               'error',
-                                                               'error-report',
-                                                               'version=',
-                                                               'filter=',
-                                                               'iscrash=',
-                                                               'limit=',
-                                                               'threshold=',
-                                                               'syncrash',
-                                                               'mail',
-                                                               'top',
-                                                               'num'])
-    except getopt.GetoptError as err:
-        sys.stderr.write(str(err))
-        sys.exit(2)
-
     for opt, arg in opts:
-        # print(opt, arg)
+        for match_opts, apply_rule in rules:
+            if opt in match_opts:
+                return apply_rule()
+
         if opt in ('-v', '--version'):
             version = arg
         elif opt in ('-s', '--severe'):
@@ -430,17 +421,35 @@ def main(argv):
         elif opt in ('-T', '--top'):
             callback = get_top_errors
         elif opt in ('-n', '--num'):
-            callback = gen_error_num_report
             params = None
-        elif opt in ('-M', '--mail'):
-            send_mail()
-            sys.exit(0)
+            callback = gen_error_num_report
 
     assert callback
     if version:
         get_info_of_version(version, callback, params)
     else:
         get_all_latest_info(callback, params)
+
+
+def main(argv):
+    try:
+        opts, args = getopt.getopt(argv, "seEv:f:c:l:t:CMTn", ['severe',
+                                                               'error',
+                                                               'error-report',
+                                                               'version=',
+                                                               'filter=',
+                                                               'iscrash=',
+                                                               'limit=',
+                                                               'threshold=',
+                                                               'syncrash',
+                                                               'mail',
+                                                               'top',
+                                                               'num'])
+    except getopt.GetoptError as err:
+        sys.stderr.write(str(err))
+        sys.exit(2)
+
+    handle_opts(opts)
 
 
 if __name__ == "__main__":
