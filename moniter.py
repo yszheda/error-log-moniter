@@ -380,21 +380,31 @@ def send_mail():
             print "Error: unable to send email to ", subscriber
 
 ########################################
-rules = (
-    (('-M', '--mail'), send_mail),
-)
+rules = {
+    '-M': send_mail,
+    '--mail': send_mail,
+}
 
-callbacks = (
-    (('-s', '--severe'), get_severe_errors),
-    (('-e', '--error'), get_errors),
-    (('-f', '--filter'), filter_error),
-    (('-c', '--iscrash'), filter_error),
-    (('-C', '--syncrash'), sync_crash),
-    (('-l', '--limit'), filter_error),
-    (('-t', '--threshold'), filter_error),
-    (('-T', '--top'), get_top_errors),
-    (('-n', '--num'), gen_error_num_report),
-)
+callbacks = {
+    '-s': get_severe_errors,
+    '--severe': get_severe_errors,
+    '-e': get_errors,
+    '--error': get_errors,
+    '-f': filter_error,
+    '--filter': filter_error,
+    '-c': filter_error,
+    '--iscrash': filter_error,
+    '-C': sync_crash,
+    '--syncrash': sync_crash,
+    '-l': filter_error,
+    '--limit': filter_error,
+    '-t': filter_error,
+    '--threshold': filter_error,
+    '-T': get_top_errors,
+    '--top': get_top_errors,
+    '-n': gen_error_num_report,
+    '--num': gen_error_num_report,
+}
 
 
 def handle_opts(opts):
@@ -403,13 +413,11 @@ def handle_opts(opts):
     params = {}
 
     for opt, arg in opts:
-        for match_opts, apply_rule in rules:
-            if opt in match_opts:
-                return apply_rule()
+        if opt in rules.keys():
+            return rules[opt]
 
-        for match_opts, apply_callback in callbacks:
-            if opt in match_opts:
-                callback = apply_callback
+        if callback is None and opt in callbacks.keys():
+            callback = callbacks[opt]
 
         if opt in ('-v', '--version'):
             version = arg
