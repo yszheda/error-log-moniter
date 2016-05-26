@@ -126,9 +126,8 @@ def get_latest_time(version):
     FROM crash_log
     WHERE version = %s
     """
-    params = (version, )
-    paramsList = list(params)
-    return query(ERROR_SECTION, SQL, tuple(paramsList))
+    params = (version)
+    return query(ERROR_SECTION, SQL, params)
 
 
 def get_error_number(version, args={}):
@@ -139,10 +138,8 @@ def get_error_number(version, args={}):
     WHERE version = %s
     AND is_crash = %s
     """
-    params = (version, )
-    paramsList = list(params)
-    paramsList.append(is_crash)
-    return query(ERROR_SECTION, SQL, tuple(paramsList))
+    params = (version, is_crash)
+    return query(ERROR_SECTION, SQL, params)
 
 
 def gen_error_num_report(version, *args):
