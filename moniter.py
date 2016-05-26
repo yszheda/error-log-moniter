@@ -379,9 +379,21 @@ def send_mail():
         except smtplib.SMTPException:
             print "Error: unable to send email to ", subscriber
 
-
+########################################
 rules = (
     (('-M', '--mail'), send_mail),
+)
+
+callbacks = (
+    (('-s', '--severe'), get_severe_errors),
+    (('-e', '--error'), get_errors),
+    (('-f', '--filter'), filter_error),
+    (('-c', '--iscrash'), filter_error),
+    (('-C', '--syncrash'), sync_crash),
+    (('-l', '--limit'), filter_error),
+    (('-t', '--threshold'), filter_error),
+    (('-T', '--top'), get_top_errors),
+    (('-n', '--num'), gen_error_num_report),
 )
 
 
@@ -395,34 +407,25 @@ def handle_opts(opts):
             if opt in match_opts:
                 return apply_rule()
 
+        for match_opts, apply_callback in callbacks:
+            if opt in match_opts:
+                callback = apply_callback
+
         if opt in ('-v', '--version'):
             version = arg
-        elif opt in ('-s', '--severe'):
-            callback = get_severe_errors
-        elif opt in ('-e', '--error'):
-            callback = get_errors
         elif opt in ('-E', '--error-report'):
             print gen_all_error_report()
             sys.exit(0)
         elif opt in ('-f', '--filter'):
-            callback = filter_error
             params['keyword'] = arg
         elif opt in ('-c', '--iscrash'):
-            callback = filter_error
             params['is_crash'] = arg
         elif opt in ('-l', '--limit'):
-            callback = filter_error
             params['limit'] = int(arg)
         elif opt in ('-t', '--threshold'):
-            callback = filter_error
             params['threshold'] = int(arg)
-        elif opt in ('-C', '--syncrash'):
-            callback = sync_crash
-        elif opt in ('-T', '--top'):
-            callback = get_top_errors
         elif opt in ('-n', '--num'):
             params = None
-            callback = gen_error_num_report
 
     assert callback
     if version:
