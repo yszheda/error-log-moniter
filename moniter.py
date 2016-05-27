@@ -10,9 +10,7 @@ import datetime
 from contextlib import closing
 import smtplib
 from email.MIMEMultipart import MIMEMultipart
-# from email.MIMEBase import MIMEBase
 from email.MIMEText import MIMEText
-# import email.Encoders as encoders
 
 ########################################
 DB_CONF = "db.conf"
@@ -109,14 +107,23 @@ def get_latest_versions():
 
 
 def gen_version_report(lang2Version):
-    report = "========================================\n"
-    report = report + "Latest version of each language:\n"
-    report = report + "========================================\n"
-    report = report + "Language\tLatest Version\n"
-    report = report + "----------------------------------------\n"
-    for k, v in lang2Version.items():
-        report = report + str(k) + '\t\t' + str(v) + '\n'
-        # report = report + "========================================\n"
+    items_title = '\t'.join([
+        'Language',
+        'Latest Version',
+    ])
+    report = '\n'.join([
+        '========================================',
+        'Latest version of each language:',
+        '========================================',
+        items_title,
+        '----------------------------------------\n',
+    ])
+
+    for lang, version in lang2Version.items():
+        report += '\t'.join(str(v) for v in [
+            lang,
+            version,
+        ]) + '\n'
     return report
 
 
@@ -168,11 +175,23 @@ def get_avg_error_num(error_num, start_timestamp, end_timestamp):
 def gen_all_error_report():
     all_versions = get_all_versions()
 
-    report = "\n========================================\n"
-    report = report + "Total error/crash number of each version:\n"
-    report = report + "========================================\n"
-    report = report + """CreatedTime\tEndTime\tVersion\tError\tCrash\t\
-    CrashPerDay\tCrashPerHour\n"""
+    items_title = '\t'.join([
+        'CreatedTime',
+        'EndTime',
+        'Version',
+        'Error',
+        'Crash',
+        'CrashPerDay',
+        'CrashPerHour',
+    ])
+    report = '\n'.join([
+        '========================================',
+        'Total error/crash number of each version:',
+        '========================================',
+        items_title,
+        '\n',
+    ])
+    print report
 
     for version_info in all_versions:
         created_timestamp = int(version_info[0])
@@ -189,19 +208,20 @@ def gen_all_error_report():
                                     latest_timestamp)
             crash_per_day = int(round(crash_per_day))
             crash_per_hour = int(round(crash_per_hour))
-            report = report \
-                + "%s\t%s\t%s\t%d\t%d\t%d\t%d\n" % (created_time,
-                                                    latest_time,
-                                                    version,
-                                                    error_num,
-                                                    crash_num,
-                                                    crash_per_day,
-                                                    crash_per_hour)
-            print "%s\t%s\t%s\t%d\t%d\t%d\t%d" % \
-                (created_time, latest_time, version, error_num,
-                 crash_num, crash_per_day, crash_per_hour)
 
-    return report
+            item_info = '\t'.join(str(v) for v in [
+                created_time,
+                latest_time,
+                version,
+                error_num,
+                crash_num,
+                crash_per_day,
+                crash_per_hour,
+            ])
+            print item_info
+            report = report + item_info
+
+    return report.expandtabs()
 
 
 def get_severe_errors(version, *args):
@@ -226,8 +246,7 @@ def filter_error(version, args={}):
     FROM_PHRASE = " FROM crash_log "
     WHERE_PHRASE = " WHERE version = %s "
 
-    params = (version, )
-    paramsList = list(params)
+    paramsList = [version, ]
 
     if keyword:
         WHERE_PHRASE = WHERE_PHRASE + " AND log LIKE '%%'%s'%%' "
@@ -271,14 +290,19 @@ def gen_error_info_report(rows):
             merged_rows[msg] = times
 
     report = "\n"
+
+    item_format = '\n'.join([
+        'Top. {0}',
+        'Error times: {1}',
+        'Error Log:\n{2}',
+        '----------------------------------------\n',
+    ])
+
     num = 1
     for error_msg, error_times in sorted(merged_rows.iteritems(),
                                          key=lambda (k, v): (v, k),
                                          reverse=True):
-        report = report + "Top. %d\n" % num
-        report = report + "Error times:" + str(error_times) + "\n"
-        report = report + "Error log:\n" + error_msg + "\n"
-        report = report + "----------------------------------------\n"
+        report += item_format.format(num, error_times, error_msg)
         num = num + 1
     return report
 
@@ -340,24 +364,36 @@ def send_mail():
     latestVersions, lang2Version = get_latest_versions()
     report = gen_version_report(lang2Version)
 
-    report = report + "\n========================================\n"
-    report = report + "Total error/crash number of each version:\n"
-    report = report + "========================================\n"
-    report = report + "Version\tError\tCrash\n"
+    items_title = '\t'.join([
+        'Version',
+        'Error',
+        'Crash',
+    ])
+    report += '\n'.join([
+        '========================================',
+        'Total error/crash number of each version:',
+        '========================================',
+        items_title,
+        '\n',
+    ])
 
     for version in latestVersions.keys():
         report = report + gen_error_num_report(version)
 
     # report = report + "\n" + gen_all_error_report()
 
-    report = report + "\n========================================\n"
-    report = report + "Top 10 error log of each version:\n"
-    report = report + "========================================\n"
+    report += '\n'.join([
+        '========================================',
+        'Top {0} error log of each version:'.format(TOP_RECORD_NUM),
+        '========================================\n',
+    ])
 
     for version in latestVersions.keys():
-        report = report + "----------------------------------------\n"
-        report = report + "Version: %s\n" % version
-        report = report + "----------------------------------------\n"
+        report += '\n'.join([
+            '----------------------------------------',
+            'Version: {0}'.format(version),
+            '----------------------------------------\n',
+        ])
         rows = filter_error(version, {'limit': TOP_RECORD_NUM,
                                       'is_crash': 0})
         report = report + gen_error_info_report(rows)
@@ -383,6 +419,8 @@ def send_mail():
 rules = {
     '-M': send_mail,
     '--mail': send_mail,
+    '-E': gen_all_error_report,
+    '--error-report': gen_all_error_report,
 }
 
 callbacks = {
@@ -414,16 +452,13 @@ def handle_opts(opts):
 
     for opt, arg in opts:
         if opt in rules.keys():
-            return rules[opt]
+            return rules[opt]()
 
         if callback is None and opt in callbacks.keys():
             callback = callbacks[opt]
 
         if opt in ('-v', '--version'):
             version = arg
-        elif opt in ('-E', '--error-report'):
-            print gen_all_error_report()
-            sys.exit(0)
         elif opt in ('-f', '--filter'):
             params['keyword'] = arg
         elif opt in ('-c', '--iscrash'):
